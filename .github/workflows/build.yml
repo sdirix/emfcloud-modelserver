@@ -1,14 +1,14 @@
 name: Build
 
-on: [pull_request]
+on: [push, pull_request]
 
 jobs:
-  build-m2:
+  build-server:
     strategy:
       # do not cancel other builds if one fails
       fail-fast: false
       matrix:
-        os: [windows-2019, ubuntu-18.04]
+        os: [ubuntu-18.04]
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -23,14 +23,15 @@ jobs:
           java-version: 11
           
       - name: Build with Maven
+        working-directory: './server'
         run: mvn -B -Pm2 clean verify --file pom.xml
 
-  build-p2:
+  build-client:
     strategy:
       # do not cancel other builds if one fails
       fail-fast: false
       matrix:
-        os: [windows-2019, ubuntu-18.04, macos-10.15]
+        os: [ubuntu-18.04]
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -38,11 +39,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        
-      - name: Set up JDK 11
-        uses: actions/setup-java@v1
+
+      - name: Setup Node 12
+        uses: actions/setup-node@v2
         with:
-          java-version: 11
-          
-      - name: Build with Maven
-        run: mvn -B -Pp2 clean verify --file pom.xml
+          node-version: 12
+
+      - name: Setup Python 3.x
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Build
+        working-directory: './client'
+        shell: bash
+        run: |
+          yarn --skip-integrity-check --network-timeout 100000 --ignore-engines
+          yarn build
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
